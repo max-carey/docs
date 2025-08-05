@@ -1,0 +1,8 @@
+.env**
+.DS_Store
+__pycache__/
+downloads/
+**.pkl
+**.json
+uv.lock
+qdrant_**/
