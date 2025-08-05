@@ -41,6 +41,10 @@ def init_qdrant() -> QdrantClient:
     
     return client
 
+def clean_text(text: str) -> str:
+    """Clean text by removing invalid Unicode characters."""
+    return text.encode('utf-8', errors='ignore').decode('utf-8')
+
 def create_embeddings(cache_key: str = "golden_test") -> List[Dict]:
     """Load cached embeddings from golden test set. Raises error if not found."""
     # Try to load cached embeddings
@@ -57,12 +61,16 @@ def create_embeddings(cache_key: str = "golden_test") -> List[Dict]:
             "id": i,
             "vector": vector,
             "payload": {
-                "text": doc.page_content,
+                "text": clean_text(doc.page_content),
                 "metadata": doc.metadata
             }
         }
         for i, (doc, vector) in enumerate(zip(cached_docs, cached_vectors))
     ]
+
+def clean_text(text: str) -> str:
+    """Clean text by removing invalid Unicode characters."""
+    return text.encode('utf-8', errors='ignore').decode('utf-8')
 
 async def upload_batch(client: QdrantClient, batch: List[Dict], semaphore: asyncio.Semaphore) -> None:
     """Upload a batch of vectors to Qdrant."""
@@ -71,7 +79,10 @@ async def upload_batch(client: QdrantClient, batch: List[Dict], semaphore: async
             PointStruct(
                 id=v["id"],
                 vector=v["vector"],
-                payload=v["payload"]
+                payload={
+                    "text": clean_text(v["payload"]["text"]),
+                    "metadata": v["payload"]["metadata"]
+                }
             )
             for v in batch
         ]

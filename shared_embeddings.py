@@ -21,7 +21,7 @@ def get_embeddings() -> Embeddings:
 
 def get_chat_model():
     """Get shared chat model instance."""
-    return ChatOpenAI(model="gpt-4")
+    return ChatOpenAI(model="gpt-3.5-turbo-0125")
 
 def save_document_embeddings(docs: List[Document], vectors: List[float], cache_key: str):
     """Save document embeddings to cache.

@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import time
 from pathlib import Path
 from typing import List, Tuple
 from functools import partial
@@ -28,10 +29,16 @@ load_dotenv()
 
 # Constants
 PDF_DIRS = ["downloads/ela_issues", "downloads"]  # Both ELA and Linguistica Mexicana directories
-MAX_DOCS_FOR_TESTING = 5  # Maximum number of documents to use for test generation
-TESTSET_SIZE = 10  # Number of test cases to generate
-BATCH_SIZE = 5  # Number of documents to process in parallel for embeddings
-MAX_CONCURRENT_TASKS = 5  # Maximum number of concurrent async tasks
+MAX_DOCS_FOR_TESTING = None  # Set to None to use all documents
+TESTSET_SIZE = 50  # Number of test cases to generate
+INITIAL_BATCH_SIZE = 5  # Initial number of documents to process in parallel
+INITIAL_CONCURRENT_TASKS = 5  # Initial number of concurrent async tasks
+BATCH_SIZE = INITIAL_BATCH_SIZE  # Current batch size (will adjust based on rate limits)
+MAX_CONCURRENT_TASKS = INITIAL_CONCURRENT_TASKS  # Current concurrency (will adjust based on rate limits)
+SUCCESS_COUNT_FOR_SPEEDUP = 10  # Number of successful requests before trying to speed up
+
+# Track successful requests
+successful_requests = 0
 
 def load_pdf(file_path: str) -> List[Document]:
     """Load PDF and return its pages as documents."""
@@ -54,14 +61,46 @@ def load_pdf(file_path: str) -> List[Document]:
 
 async def generate_embedding(doc: Document, generator_embeddings) -> Tuple[Document, List[float]]:
     """Generate embedding for a single document asynchronously."""
-    # Run the embedding generation in a thread pool since it's a CPU-bound operation
-    loop = asyncio.get_event_loop()
-    vector = await loop.run_in_executor(
-        None, 
-        generator_embeddings.embed_query, 
-        doc.page_content
-    )
-    return doc, vector
+    global BATCH_SIZE, MAX_CONCURRENT_TASKS, successful_requests
+    max_retries = 3
+    retry_delay = 2.0
+    
+    for attempt in range(max_retries):
+        try:
+            # Run the embedding generation in a thread pool since it's a CPU-bound operation
+            loop = asyncio.get_event_loop()
+            vector = await loop.run_in_executor(
+                None, 
+                generator_embeddings.embed_query, 
+                doc.page_content
+            )
+            
+            # Track successful request and potentially speed up
+            successful_requests += 1
+            if successful_requests >= SUCCESS_COUNT_FOR_SPEEDUP:
+                if BATCH_SIZE < INITIAL_BATCH_SIZE or MAX_CONCURRENT_TASKS < INITIAL_CONCURRENT_TASKS:
+                    BATCH_SIZE = min(INITIAL_BATCH_SIZE, BATCH_SIZE * 2)
+                    MAX_CONCURRENT_TASKS = min(INITIAL_CONCURRENT_TASKS, MAX_CONCURRENT_TASKS * 2)
+                    logging.info(f"Processing running smoothly, increasing batch size to {BATCH_SIZE} and concurrency to {MAX_CONCURRENT_TASKS}")
+                successful_requests = 0  # Reset counter
+                
+            return doc, vector
+            
+        except Exception as e:
+            if "429" in str(e) and attempt < max_retries - 1:
+                # Only slow down if we hit a rate limit
+                logging.warning(f"Rate limit hit, retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
+                await asyncio.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                
+                # Reduce batch size and concurrency after hitting rate limit
+                BATCH_SIZE = max(1, BATCH_SIZE // 2)
+                MAX_CONCURRENT_TASKS = max(1, MAX_CONCURRENT_TASKS // 2)
+                successful_requests = 0  # Reset success counter
+                logging.info(f"Reducing batch size to {BATCH_SIZE} and concurrency to {MAX_CONCURRENT_TASKS}")
+            else:
+                logging.error(f"Error generating embedding for document {doc.metadata.get('source', 'unknown')}: {str(e)}")
+                raise
 
 async def process_document_batch(batch: List[Document], generator_embeddings) -> List[Tuple[Document, List[float]]]:
     """Process a batch of documents to generate their embeddings asynchronously."""
@@ -121,16 +160,20 @@ async def generate_golden_dataset(docs: List[Document], output_file: str = "gold
     logging.info("Generating golden test dataset...")
     
     # Initialize models for test generation
-    generator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4"))
+    generator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-3.5-turbo-0125"))
     generator_embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings())
     
     # Initialize test generator with the models
     generator = TestsetGenerator(llm=generator_llm, embedding_model=generator_embeddings)
     logging.info("Initialized Ragas test generator")
     
-    # Use only the specified number of documents
-    docs_subset = docs[:MAX_DOCS_FOR_TESTING]
-    logging.info(f"Using {len(docs_subset)} documents for test generation (out of {len(docs)} total documents)")
+    # Use all documents if MAX_DOCS_FOR_TESTING is None, otherwise use the specified number
+    if MAX_DOCS_FOR_TESTING is None:
+        docs_subset = docs
+        logging.info(f"Using all {len(docs_subset)} documents for test generation")
+    else:
+        docs_subset = docs[:MAX_DOCS_FOR_TESTING]
+        logging.info(f"Using {len(docs_subset)} documents for test generation (out of {len(docs)} total documents)")
     
     # Generate embeddings asynchronously
     processed_docs, vectors = await generate_embeddings_async(docs_subset, generator_embeddings)
@@ -144,6 +187,7 @@ async def generate_golden_dataset(docs: List[Document], output_file: str = "gold
     try:
         df = await generate_test_cases_async(generator, processed_docs, testset_size)
         df.to_csv(output_file, index=False)
+        logging.info(f"Successfully saved {len(df)} test cases to {output_file}")
         return df
     except Exception as e:
         logging.error(f"Error in Ragas test generation: {str(e)}")
@@ -151,10 +195,11 @@ async def generate_golden_dataset(docs: List[Document], output_file: str = "gold
 
 def main():
     """Main function to generate golden test dataset."""
-    # Collect documents until we reach MAX_DOCS_FOR_TESTING
+    # Collect all documents
     all_docs = []
     for pdf_dir in PDF_DIRS:
-        if len(all_docs) >= MAX_DOCS_FOR_TESTING:
+        # If MAX_DOCS_FOR_TESTING is not None, check if we've reached the limit
+        if MAX_DOCS_FOR_TESTING is not None and len(all_docs) >= MAX_DOCS_FOR_TESTING:
             logging.info(f"Reached maximum number of documents ({MAX_DOCS_FOR_TESTING})")
             break
             
@@ -169,7 +214,8 @@ def main():
                 docs = load_pdf(str(pdf_file))
                 if docs:
                     all_docs.extend(docs)
-                    if len(all_docs) >= MAX_DOCS_FOR_TESTING:
+                    # If MAX_DOCS_FOR_TESTING is not None, check if we've reached the limit
+                    if MAX_DOCS_FOR_TESTING is not None and len(all_docs) >= MAX_DOCS_FOR_TESTING:
                         logging.info(f"Reached maximum number of documents ({MAX_DOCS_FOR_TESTING})")
                         break
                     

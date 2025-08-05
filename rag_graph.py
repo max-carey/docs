@@ -1,4 +1,4 @@
-from typing import TypedDict, Annotated, List, Dict
+from typing import TypedDict, Annotated, List, Dict, Union
 from typing_extensions import TypedDict
 from operator import add
 from dataclasses import dataclass
@@ -46,7 +46,7 @@ vectorstore = Qdrant(
 
 # Define our state type
 class AgentState(TypedDict):
-    messages: Annotated[List[HumanMessage | AIMessage], add]
+    messages: Annotated[List[Union[HumanMessage, AIMessage]], add]
     context: List[str]
     current_step: str
 
@@ -158,7 +158,7 @@ class InferenceEngine:
 def main():
     # Initialize LLM
     llm = ChatOpenAI(
-        model="gpt-3.5-turbo",
+        model="gpt-3.5-turbo-0125",
         temperature=0,
     )
     
