@@ -3,6 +3,7 @@ from typing_extensions import TypedDict
 from operator import add
 from dataclasses import dataclass
 import logging
+from langchain_tavily import TavilySearch
 
 # Set up logging for multi-query retriever
 logging.basicConfig()
@@ -64,7 +65,8 @@ class PromptConstructor:
     def get_system_message(self) -> str:
         """Returns the system message template."""
         return """You are a helpful assistant answering questions about linguistics articles. 
-        Use the following context to answer the user's question:
+        Use the following context from both our local database and relevant web sources to answer the user's question.
+        When using web sources (marked with [Web Source: ...]), make sure to cite them in your response.
         
         {context}"""
 
@@ -95,27 +97,46 @@ class InferenceEngine:
             retriever=self.base_retriever,
             llm=llm
         )
+        # Initialize Tavily Search tool
+        self.tavily_search = TavilySearch(
+            max_results=3,  # Match the number of results from vectorstore
+            topic="general"  # Set topic to match our domain
+        )
 
     def retrieve(self, query: str) -> List[str]:
         """Retrieves relevant documents for the given query."""
         try:
             print("\n=== Retrieved Documents ===")
-            # Use LangChain's retriever interface to get documents
-            docs = self.retriever.get_relevant_documents(query)
-            
             contents = []
+            
+            # Get documents from vector store
+            print("\n--- Vector Store Results ---")
+            docs = self.retriever.get_relevant_documents(query)
             for i, doc in enumerate(docs):
-                print(f"\nResult {i + 1}:")
+                print(f"\nVector Store Result {i + 1}:")
                 if hasattr(doc, 'page_content'):
                     contents.append(doc.page_content)
                     print(f"Content: {doc.page_content[:200]}...")
                 else:
                     print("No content in document")
             
-            print("Contents to return:", contents)
+            # Get results from Tavily Search
+            print("\n--- Web Search Results ---")
+            try:
+                web_results = self.tavily_search.invoke(query)
+                if isinstance(web_results, dict) and 'results' in web_results:
+                    for i, result in enumerate(web_results['results']):
+                        print(f"\nWeb Result {i + 1}:")
+                        content = f"[Web Source: {result['title']}] {result['content']}"
+                        contents.append(content)
+                        print(f"Content: {content[:200]}...")
+            except Exception as web_error:
+                print(f"Error during web search: {str(web_error)}")
+            
+            print("\nTotal contents to return:", len(contents))
             return contents
         except Exception as e:
-            print(f"Error during similarity search: {str(e)}")
+            print(f"Error during retrieval: {str(e)}")
             return []
 
     def format_context(self, context_docs: List[str]) -> str:

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def load_evaluation_data(file_path: str = "golden_data_set_experiment_2.csv") -> pd.DataFrame:
+def load_evaluation_data(file_path: str = "golden_data_set_experiment_3.csv") -> pd.DataFrame:
     """Load the evaluation dataset."""
     df = pd.read_csv(file_path)
     
