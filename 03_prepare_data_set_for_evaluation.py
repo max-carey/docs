@@ -1,10 +1,8 @@
 import pandas as pd
 from rag_graph import InferenceEngine, vectorstore
 from langchain_openai import ChatOpenAI
-import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
 def load_golden_dataset(file_path: str = "golden_test_dataset.csv") -> pd.DataFrame:
@@ -13,27 +11,23 @@ def load_golden_dataset(file_path: str = "golden_test_dataset.csv") -> pd.DataFr
 
 def run_rag_evaluation(dataset: pd.DataFrame) -> pd.DataFrame:
     """Run RAG system on each test case and collect results."""
-    # Initialize LLM and inference engine
     llm = ChatOpenAI(
         model="gpt-3.5-turbo-0125",
         temperature=0,
     )
     engine = InferenceEngine(vectorstore, llm)
     
-    # Initialize result lists
     responses = []
     retrieved_contexts = []
     
-    # Process each test case
+    
     for _, row in dataset.iterrows():
         try:
             print(f"\nProcessing query: {row['user_input']}")
             
-            # Get retrieved contexts
             contexts = engine.retrieve(row['user_input'])
             retrieved_contexts.append(contexts)
             
-            # Get response
             response = engine.run_inference(row['user_input'])
             responses.append(response)
             
@@ -43,7 +37,6 @@ def run_rag_evaluation(dataset: pd.DataFrame) -> pd.DataFrame:
             retrieved_contexts.append([])
             responses.append("")
     
-    # Add results to dataframe
     dataset['retrieved_contexts'] = retrieved_contexts
     dataset['response'] = responses
     

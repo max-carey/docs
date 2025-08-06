@@ -1,8 +1,46 @@
-# ELA Journal Vector Search
+# ELA Journal Vector Search and RAG Evaluation Framework
 
-This project creates a searchable vector database from ELA (Estudios de Lingüística Aplicada) journal PDFs using Qdrant and LangChain.
+This project creates a searchable vector database from ELA (Estudios de Lingüística Aplicada) journal PDFs using Qdrant and LangChain. It includes a comprehensive RAG (Retrieval-Augmented Generation) evaluation framework that uses RAGAS to assess the quality of the system's responses.
 
-## Prerequisites
+## Project Overview
+
+The project consists of several key components that work together to create, evaluate, and optimize a RAG system:
+
+1. **Golden Test Generation** (`01_chunk_generate_embeddings_and_golden_test_set`)
+   - Uses RAGAS to create a test dataset
+   - Processes PDF documents and generates embeddings using OpenAI's text-embedding-3-small model
+   - Saves embeddings and metadata in `embeddings_cache` for reuse
+   - Creates a CSV file with fields: user_input (the golden query), reference_contexts (the golden contexts) and reference (the golden answer)
+   - Concept: the golden test set is the ground truth. This set provides a reliable benchmark for evaluating the RAG system's retrieval and generation capabilities. By comparing system outputs to the golden set, you can objectively measure improvements and identify areas for further optimization.
+
+2. **Vector Database Population** (`02_vector_database_population.py`)
+   - Loads the cached embeddings from the previous step
+   - Initializes and populates a Qdrant vector database
+   - Handles batch processing and concurrent uploads for efficiency
+   - Ensures proper text cleaning and metadata preservation
+
+3. **Prepare a Data Set to Evaluate a Speicifc RAG Iteration** (`generate_golden_test_results.py`)
+   - Runs the RAG system against the golden test dataset
+   - Uses the inference chain defined in `rag_graph.py`
+   - Generates responses for each test case using the rag_graph: retrieved_contexts (input chunks) and response (outut from inference) are appended to a new CSV
+   - Saves results in a CSV file for evaluation
+
+4. **RAG Evaluation** (`evaluate_rag.py`)
+   - Uses RAGAS to evaluate the RAG system's performance
+   - Implements multiple evaluation metrics:
+     - Context Recall
+     - Faithfulness
+     - Factual Correctness
+     - Response Relevancy
+     - Entity Recall
+     - Noise Sensitivity
+   - Provides detailed scoring and analysis
+
+The core RAG implementation (`rag_graph.py`) handles the actual inference process, including context retrieval, prompt construction, and response generation.
+
+#### 
+
+Prerequisites
 
 - Docker Desktop for Mac
 - Python 3.9+
@@ -36,29 +74,21 @@ Qdrant will be accessible at:
 2. **Install Python Dependencies**
 
 ```bash
-# Install dependencies using uv
-uv pip sync
+uv sync
 ```
 
-## Usage
+3. **Clearing Qdrant**
 
-1. **Download PDFs**
+If you need to clear the vector database and start fresh:
 ```bash
-python scrape_ela.py
+python clear_qdrant.py
 ```
 
-2. **Process PDFs and Create Vector Database**
-```bash
-python process_pdfs.py
-```
 
-## Project Structure
+# Issues that I still have not worked through
 
-- `scrape_ela.py` - Downloads PDFs from ELA journal
-- `process_pdfs.py` - Processes PDFs and creates vector embeddings
-- `qdrant_storage/` - Local storage for Qdrant vector database
-- `downloads/ela_issues/` - Downloaded PDF files
+I was getting the below exceptios when running the evaluations:s
+- ████████████████████████████▉               | 221/300 [03:02<01:07,  1.17it/s]Exception raised in Job[197]: ValueError(setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (3,) + inhomogeneous part.)
 
-## Security Note
 
-The default Qdrant setup has no authentication. For production use, refer to [Qdrant's security documentation](https://qdrant.tech/documentation/guides/security).
+Exception raised in Job[220]: LLMDidNotFinishException(The LLM generation was not completed. Please increase try increasing the max_tokens and try again.)

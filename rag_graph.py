@@ -59,9 +59,7 @@ class PromptConstructor:
         return """You are a helpful assistant answering questions about linguistics articles. 
         Use the following context to answer the user's question:
         
-        {context}
-        
-        If you cannot find the answer in the context, say so."""
+        {context}"""
 
     def create_prompt_template(self) -> ChatPromptTemplate:
         """Creates and returns the chat prompt template."""

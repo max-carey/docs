@@ -1,0 +1,9 @@
+
+Mean Scores:
+===========
+context_recall: 0.562
+faithfulness: 0.384
+factual_correctness: 0.226
+answer_relevancy: 0.630
+context_entity_recall: 0.012
+noise_sensitivity_relevant: 0.033

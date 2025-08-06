@@ -1,7 +1,5 @@
-import os
 import logging
 import asyncio
-import time
 from pathlib import Path
 from typing import List, Tuple
 from functools import partial
@@ -18,26 +16,22 @@ from tqdm.asyncio import tqdm_asyncio
 
 from shared_embeddings import save_document_embeddings
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
-# Load environment variables
 load_dotenv()
 
-# Constants
-PDF_DIRS = ["downloads/ela_issues", "downloads"]  # Both ELA and Linguistica Mexicana directories
-MAX_DOCS_FOR_TESTING = None  # Set to None to use all documents
-TESTSET_SIZE = 50  # Number of test cases to generate
-INITIAL_BATCH_SIZE = 5  # Initial number of documents to process in parallel
-INITIAL_CONCURRENT_TASKS = 5  # Initial number of concurrent async tasks
-BATCH_SIZE = INITIAL_BATCH_SIZE  # Current batch size (will adjust based on rate limits)
-MAX_CONCURRENT_TASKS = INITIAL_CONCURRENT_TASKS  # Current concurrency (will adjust based on rate limits)
-SUCCESS_COUNT_FOR_SPEEDUP = 10  # Number of successful requests before trying to speed up
+PDF_DIRS = ["downloads/ela_issues", "downloads"]
+MAX_DOCS_FOR_TESTING = None
+TESTSET_SIZE = 50
+INITIAL_BATCH_SIZE = 5
+INITIAL_CONCURRENT_TASKS = 5
+BATCH_SIZE = INITIAL_BATCH_SIZE
+MAX_CONCURRENT_TASKS = INITIAL_CONCURRENT_TASKS
+SUCCESS_COUNT_FOR_SPEEDUP = 10
 
-# Track successful requests
 successful_requests = 0
 
 def load_pdf(file_path: str) -> List[Document]:
@@ -49,7 +43,6 @@ def load_pdf(file_path: str) -> List[Document]:
         if not pages:
             return []
             
-        # Add source metadata
         for page in pages:
             page.metadata['source'] = file_path
             
@@ -67,7 +60,6 @@ async def generate_embedding(doc: Document, generator_embeddings) -> Tuple[Docum
     
     for attempt in range(max_retries):
         try:
-            # Run the embedding generation in a thread pool since it's a CPU-bound operation
             loop = asyncio.get_event_loop()
             vector = await loop.run_in_executor(
                 None, 
@@ -75,7 +67,6 @@ async def generate_embedding(doc: Document, generator_embeddings) -> Tuple[Docum
                 doc.page_content
             )
             
-            # Track successful request and potentially speed up
             successful_requests += 1
             if successful_requests >= SUCCESS_COUNT_FOR_SPEEDUP:
                 if BATCH_SIZE < INITIAL_BATCH_SIZE or MAX_CONCURRENT_TASKS < INITIAL_CONCURRENT_TASKS:
@@ -88,15 +79,13 @@ async def generate_embedding(doc: Document, generator_embeddings) -> Tuple[Docum
             
         except Exception as e:
             if "429" in str(e) and attempt < max_retries - 1:
-                # Only slow down if we hit a rate limit
                 logging.warning(f"Rate limit hit, retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})")
                 await asyncio.sleep(retry_delay)
-                retry_delay *= 2  # Exponential backoff
+                retry_delay *= 2
                 
-                # Reduce batch size and concurrency after hitting rate limit
                 BATCH_SIZE = max(1, BATCH_SIZE // 2)
                 MAX_CONCURRENT_TASKS = max(1, MAX_CONCURRENT_TASKS // 2)
-                successful_requests = 0  # Reset success counter
+                successful_requests = 0
                 logging.info(f"Reducing batch size to {BATCH_SIZE} and concurrency to {MAX_CONCURRENT_TASKS}")
             else:
                 logging.error(f"Error generating embedding for document {doc.metadata.get('source', 'unknown')}: {str(e)}")
@@ -112,7 +101,6 @@ async def generate_embeddings_async(docs: List[Document], generator_embeddings) 
     processed_docs = []
     vectors = []
     
-    # Process documents in batches
     batches = [docs[i:i + BATCH_SIZE] for i in range(0, len(docs), BATCH_SIZE)]
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
     
@@ -120,13 +108,11 @@ async def generate_embeddings_async(docs: List[Document], generator_embeddings) 
         async with semaphore:
             return await process_document_batch(batch, generator_embeddings)
     
-    # Process all batches with progress bar
     results = await tqdm_asyncio.gather(
         *[process_batch_with_semaphore(batch) for batch in batches],
         desc="Generating embeddings"
     )
     
-    # Flatten results
     for batch_results in results:
         for doc, vector in batch_results:
             processed_docs.append(doc)
@@ -137,7 +123,6 @@ async def generate_embeddings_async(docs: List[Document], generator_embeddings) 
 async def generate_test_cases_async(generator: TestsetGenerator, docs: List[Document], testset_size: int) -> pd.DataFrame:
     """Generate test cases asynchronously."""
     loop = asyncio.get_event_loop()
-    # Run the test generation in a thread pool since it's CPU-bound
     df = await loop.run_in_executor(
         None,
         partial(generator.generate_with_langchain_docs, docs, testset_size=testset_size)
@@ -159,15 +144,12 @@ async def generate_golden_dataset(docs: List[Document], output_file: str = "gold
     """
     logging.info("Generating golden test dataset...")
     
-    # Initialize models for test generation
     generator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-3.5-turbo-0125"))
     generator_embeddings = LangchainEmbeddingsWrapper(OpenAIEmbeddings())
     
-    # Initialize test generator with the models
     generator = TestsetGenerator(llm=generator_llm, embedding_model=generator_embeddings)
     logging.info("Initialized Ragas test generator")
     
-    # Use all documents if MAX_DOCS_FOR_TESTING is None, otherwise use the specified number
     if MAX_DOCS_FOR_TESTING is None:
         docs_subset = docs
         logging.info(f"Using all {len(docs_subset)} documents for test generation")
@@ -175,14 +157,11 @@ async def generate_golden_dataset(docs: List[Document], output_file: str = "gold
         docs_subset = docs[:MAX_DOCS_FOR_TESTING]
         logging.info(f"Using {len(docs_subset)} documents for test generation (out of {len(docs)} total documents)")
     
-    # Generate embeddings asynchronously
     processed_docs, vectors = await generate_embeddings_async(docs_subset, generator_embeddings)
     
-    # Save embeddings for reuse
     save_document_embeddings(processed_docs, vectors, cache_key)
     logging.info(f"Saved embeddings for {len(processed_docs)} documents")
     
-    # Generate test dataset using latest Ragas API
     logging.info("Generating test cases...")
     try:
         df = await generate_test_cases_async(generator, processed_docs, testset_size)
@@ -195,10 +174,8 @@ async def generate_golden_dataset(docs: List[Document], output_file: str = "gold
 
 def main():
     """Main function to generate golden test dataset."""
-    # Collect all documents
     all_docs = []
     for pdf_dir in PDF_DIRS:
-        # If MAX_DOCS_FOR_TESTING is not None, check if we've reached the limit
         if MAX_DOCS_FOR_TESTING is not None and len(all_docs) >= MAX_DOCS_FOR_TESTING:
             logging.info(f"Reached maximum number of documents ({MAX_DOCS_FOR_TESTING})")
             break
@@ -214,7 +191,6 @@ def main():
                 docs = load_pdf(str(pdf_file))
                 if docs:
                     all_docs.extend(docs)
-                    # If MAX_DOCS_FOR_TESTING is not None, check if we've reached the limit
                     if MAX_DOCS_FOR_TESTING is not None and len(all_docs) >= MAX_DOCS_FOR_TESTING:
                         logging.info(f"Reached maximum number of documents ({MAX_DOCS_FOR_TESTING})")
                         break
@@ -227,13 +203,10 @@ def main():
         logging.error("No documents were loaded. Exiting.")
         return
     
-    # Generate golden test dataset
     try:
-        # Run the async parts using asyncio
         df = asyncio.run(generate_golden_dataset(all_docs))
         logging.info(f"Generated {len(df)} test cases")
         
-        # Display a summary of the dataset
         logging.info("\nDataset Summary:")
         if len(df) > 0:
             logging.info(f"Average question length: {df['user_input'].str.len().mean():.1f} characters")
