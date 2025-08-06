@@ -2,7 +2,7 @@
 
 ## 📝 Deliverables for Grader
 
-### [🎥 Watch the Project Demo Video](https://www.loom.com/share/e59a360d01f740a18fc7ecdda81f1c6f)
+### [🎥 Watch the Project Demo Video](https://www.loom.com/share/4e0ed0a97d6e4c1a81669133460ba0a4)
 A 5-minute walkthrough of the system in action, demonstrating the RAG pipeline and evaluation framework.
 
 ### [📚 Read the Homework Questions & Answers](homework_questions.md)
