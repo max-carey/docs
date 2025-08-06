@@ -42,6 +42,7 @@ vectorstore = Qdrant(
     client=client,
     collection_name=COLLECTION_NAME,
     embeddings=embeddings,
+    content_payload_key="text",
 )
 
 # Define our state type
@@ -78,28 +79,26 @@ class InferenceEngine:
         self.vectorstore = vectorstore
         self.llm = llm
         self.prompt_constructor = PromptConstructor()
+        # Create a retriever from the vectorstore
+        self.retriever = vectorstore.as_retriever(
+            search_type="similarity",  # Use similarity search
+            search_kwargs={"k": 3}  # Return top 3 results
+        )
 
     def retrieve(self, query: str) -> List[str]:
         """Retrieves relevant documents for the given query."""
         try:
-            # Use the raw Qdrant client to get results with payloads
-            results = self.vectorstore.client.search(
-                collection_name=self.vectorstore.collection_name,
-                query_vector=self.vectorstore.embeddings.embed_query(query),
-                limit=3
-            )
+            # Use LangChain's retriever interface
+            docs = self.retriever.invoke(query)
             
             contents = []
-            for i, result in enumerate(results):
+            for i, doc in enumerate(docs):
                 print(f"\nResult {i + 1}:")
-                print(f"Score: {result.score}")
-                if result.payload:
-                    print(f"Payload: {result.payload}")
-                    if 'text' in result.payload:
-                        contents.append(result.payload['text'])
-                        print(f"Content: {result.payload['text'][:200]}...")
-                    else:
-                        print("No text in payload")
+                if hasattr(doc, 'page_content'):
+                    contents.append(doc.page_content)
+                    print(f"Content: {doc.page_content[:200]}...")
+                else:
+                    print("No content in document")
             
             print("Contents to return:", contents)
             return contents

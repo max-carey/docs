@@ -1,9 +1,55 @@
+# RAG Evaluation Results
 
-Mean Scores:
-===========
-context_recall: 0.562
-faithfulness: 0.384
-factual_correctness: 0.226
-answer_relevancy: 0.630
-context_entity_recall: 0.012
-noise_sensitivity_relevant: 0.033
+## Summary Metrics
+| Metric | Score | Performance |
+|--------|--------|-------------|
+| Context Recall | 0.534 | Moderate |
+| Answer Relevancy | 0.597 | Decent |
+| Faithfulness | 0.337 | Poor |
+| Factual Correctness | 0.207 | Very Poor |
+| Context Entity Recall | 0.011 | Critical |
+| Noise Sensitivity | 0.012 | Critical |
+
+## Detailed Analysis
+
+### Context Recall (0.534) - Moderate Performance
+- Measures if the system retrieves the right pieces of information from source documents
+- System is finding relevant information about half the time
+- **Best performing metric** in the evaluation
+- Room for significant improvement in retrieval accuracy
+
+### Answer Relevancy (0.597) - Decent Performance
+- Evaluates if answers address the user's question
+- Second best performing metric
+- Responses are generally on-topic
+- Could be more focused and precise
+
+### Faithfulness (0.337) - Poor Performance
+- Checks if responses adhere to facts from retrieved context
+- Concerning performance level
+- Potential issues:
+  - Making up information not in context
+  - Combining information incorrectly
+  - Straying from source material
+
+### Factual Correctness (0.207) - Very Poor Performance
+- Verifies factual accuracy of generated responses
+- Serious issues with accuracy identified
+- Root causes may include:
+  - Poor context retrieval
+  - Incorrect information synthesis
+  - LLM hallucination
+
+### Critical Issues
+
+#### Entity Recall (0.011)
+- System failing to include important:
+  - Named entities
+  - Key terms
+  - Critical information from context
+- Requires immediate attention
+
+#### Noise Sensitivity (0.012)
+- System highly affected by irrelevant information
+- Poor discrimination between relevant and irrelevant content
+- Needs significant improvement in filtering mechanism

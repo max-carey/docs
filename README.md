@@ -8,14 +8,18 @@ The project consists of several key components that work together to create, eva
 
 1. **Golden Test Generation** (`01_chunk_generate_embeddings_and_golden_test_set`)
    - Uses RAGAS to create a test dataset
-   - Processes PDF documents and generates embeddings using OpenAI's text-embedding-3-small model
+   - Models used:
+     - Embeddings: OpenAI Embeddings (text-embedding-3-small)
+     - Test Generation: GPT-3.5 Turbo (gpt-3.5-turbo-0125)
+   - Processes PDF documents and generates embeddings
    - Saves embeddings and metadata in `embeddings_cache` for reuse
    - Creates a CSV file with fields: user_input (the golden query), reference_contexts (the golden contexts) and reference (the golden answer)
    - Concept: the golden test set is the ground truth. This set provides a reliable benchmark for evaluating the RAG system's retrieval and generation capabilities. By comparing system outputs to the golden set, you can objectively measure improvements and identify areas for further optimization.
 
 2. **Vector Database Population** (`02_vector_database_population.py`)
    - Loads the cached embeddings from the previous step
-   - Initializes and populates a Qdrant vector database
+   - Uses Qdrant as the vector database (with cosine similarity)
+   - Vector size: 1536 dimensions (compatible with OpenAI embeddings)
    - Handles batch processing and concurrent uploads for efficiency
    - Ensures proper text cleaning and metadata preservation
 
@@ -27,6 +31,8 @@ The project consists of several key components that work together to create, eva
 
 4. **RAG Evaluation** (`evaluate_rag.py`)
    - Uses RAGAS to evaluate the RAG system's performance
+   - Models used:
+     - Evaluation LLM: GPT-3.5 Turbo (gpt-3.5-turbo-0125)
    - Implements multiple evaluation metrics:
      - Context Recall
      - Faithfulness
@@ -35,6 +41,7 @@ The project consists of several key components that work together to create, eva
      - Entity Recall
      - Noise Sensitivity
    - Provides detailed scoring and analysis
+   - Uses a 360-second timeout for comprehensive evaluation
 
 The core RAG implementation (`rag_graph.py`) handles the actual inference process, including context retrieval, prompt construction, and response generation.
 
