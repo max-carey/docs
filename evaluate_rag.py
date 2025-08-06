@@ -19,12 +19,12 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-def load_evaluation_data(file_path: str = "golden_data_set_experiment_1.csv") -> pd.DataFrame:
+def load_evaluation_data(file_path: str = "perfect_rag_examples.csv") -> pd.DataFrame:
     """Load the evaluation dataset."""
     df = pd.read_csv(file_path)
     
     # Set TEST_MODE to True to only process first 5 rows while testing
-    TEST_MODE = False  # Comment this line to process all rows
+    TEST_MODE = True  # Comment this line to process all rows
     if TEST_MODE:
         print("Running in TEST MODE - only processing first 5 rows")
         return df.head(5)
@@ -69,12 +69,14 @@ def run_ragas_evaluation(dataset: EvaluationDataset) -> dict:
         llm=evaluator_llm,
         run_config=custom_run_config
     )
+    # Convert EvaluationResult to pandas DataFrame
+    df_results = result.to_pandas()
     
-    # Convert EvaluationResult to dictionary
-    return {
-        metric.name: score
-        for metric, score in zip(metrics, result.scores)
-    }
+    # Save to CSV
+    df_results.to_csv('results.csv')
+    
+    # Return the results
+    return df_results
 
 def main():
     print("Loading evaluation data...")
@@ -87,32 +89,19 @@ def main():
     print("\nRunning RAGAS evaluation...")
     results = run_ragas_evaluation(dataset)
     
-    # Print results
+        # Print results
     print("\nEvaluation Results:")
     print("==================")
-    for metric_name, metric_scores in results.items():
-        print(f"{metric_name}:")
-        for score_name, score in metric_scores.items():
-            if isinstance(score, (int, float, np.floating)):
-                print(f"  - {score_name}: {float(score):.3f}")
-            else:
-                print(f"  - {score_name}: {score}")
-        print()
     
-    # Save results to CSV
-    # Create a single row with the main scores
-    flat_results = {}
-    for metric_name, metric_scores in results.items():
-        # Get the main score for each metric (usually matches the metric name)
-        for score_name, score in metric_scores.items():
-            if score_name == metric_name or score_name == f"{metric_name}(mode=f1)" or score_name == f"{metric_name}(mode=relevant)":
-                flat_results[metric_name] = float(score) if not pd.isna(score) else 0.0
-                break
+    # Print the DataFrame results directly
+    print(results)
     
-    results_df = pd.DataFrame([flat_results])
-    output_file = "evaluation_results.csv"
-    results_df.to_csv(output_file, index=False)
-    print(f"\nResults saved to {output_file}")
+    # Calculate and print mean scores for each metric
+    mean_scores = results.mean(numeric_only=True)
+    print("\nMean Scores:")
+    print("===========")
+    for metric_name, score in mean_scores.items():
+        print(f"{metric_name}: {score:.3f}")
 
 if __name__ == "__main__":
     main()
