@@ -2,11 +2,17 @@ from typing import TypedDict, Annotated, List, Dict, Union
 from typing_extensions import TypedDict
 from operator import add
 from dataclasses import dataclass
+import logging
+
+# Set up logging for multi-query retriever
+logging.basicConfig()
+logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import Qdrant
+from langchain.retrievers.multi_query import MultiQueryRetriever
 from qdrant_client import QdrantClient, models
 import os
 from dotenv import load_dotenv
@@ -79,17 +85,23 @@ class InferenceEngine:
         self.vectorstore = vectorstore
         self.llm = llm
         self.prompt_constructor = PromptConstructor()
-        # Create a retriever from the vectorstore
-        self.retriever = vectorstore.as_retriever(
+        # Create a base retriever from the vectorstore
+        self.base_retriever = vectorstore.as_retriever(
             search_type="similarity",  # Use similarity search
             search_kwargs={"k": 3}  # Return top 3 results
+        )
+        # Create the multi-query retriever
+        self.retriever = MultiQueryRetriever.from_llm(
+            retriever=self.base_retriever,
+            llm=llm
         )
 
     def retrieve(self, query: str) -> List[str]:
         """Retrieves relevant documents for the given query."""
         try:
-            # Use LangChain's retriever interface
-            docs = self.retriever.invoke(query)
+            print("\n=== Retrieved Documents ===")
+            # Use LangChain's retriever interface to get documents
+            docs = self.retriever.get_relevant_documents(query)
             
             contents = []
             for i, doc in enumerate(docs):
@@ -125,7 +137,7 @@ class InferenceEngine:
         
         # Create the chain with explicit steps
         chain = {
-            "context": lambda x: self.format_context(self.retrieve(x["question"])),
+            "context": lambda x: self.format_context(self.retrieve(x["question"])),  # This will now use MultiQueryRetriever
             "question": lambda x: x["question"]
         } | prompt | self.llm | StrOutputParser()
         
