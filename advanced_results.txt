@@ -1,0 +1,66 @@
+Mean Scores:
+===========
+context_recall: 0.646
+faithfulness: 0.288
+factual_correctness: 0.278
+answer_relevancy: 0.633
+context_entity_recall: 0.006
+noise_sensitivity_relevant: 0.052
+
+Comparative Analysis vs Baseline:
+==============================
+
+1. Context Recall
+   - Advanced: 0.646 vs Baseline: 0.534
+   - Improvement: +0.112 (21% increase)
+   - Notable improvement in retrieving relevant information
+   - Still room for optimization but showing positive progress
+
+2. Answer Relevancy
+   - Advanced: 0.633 vs Baseline: 0.597
+   - Improvement: +0.036 (6% increase)
+   - Maintains strong performance in addressing queries
+   - Slight enhancement in response focus
+
+3. Faithfulness
+   - Advanced: 0.288 vs Baseline: 0.337
+   - Decline: -0.049 (15% decrease)
+   - Concerning trend in context adherence
+   - May need investigation into:
+     * Context processing pipeline
+     * Response generation parameters
+     * Context window optimization
+
+4. Factual Correctness
+   - Advanced: 0.278 vs Baseline: 0.207
+   - Improvement: +0.071 (34% increase)
+   - While still low, shows significant relative improvement
+   - Suggests better information synthesis despite lower faithfulness
+
+5. Context Entity Recall
+   - Advanced: 0.006 vs Baseline: 0.011
+   - Decline: -0.005 (45% decrease)
+   - Critical issue persists and has worsened
+   - Urgent attention needed for entity recognition and inclusion
+
+6. Noise Sensitivity
+   - Advanced: 0.052 vs Baseline: 0.012
+   - Change: +0.040 (333% increase)
+   - Higher score indicates better noise handling
+   - Significant improvement in distinguishing relevant content
+
+Key Findings:
+============
+1. Major Improvements:
+   - Context recall and noise sensitivity show substantial gains
+   - Factual correctness, while still low, has improved notably
+
+2. Areas of Concern:
+   - Declining faithfulness score needs investigation
+   - Critical entity recall issues persist and have worsened
+
+3. Next Steps:
+   - Investigate faithfulness decline
+   - Prioritize entity recall enhancement
+   - Continue optimizing context recall mechanisms
+   - Maintain improvements in noise handling

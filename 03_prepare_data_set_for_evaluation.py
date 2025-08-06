@@ -42,7 +42,7 @@ def run_rag_evaluation(dataset: pd.DataFrame) -> pd.DataFrame:
     
     return dataset
 
-def save_results(results: pd.DataFrame, output_file: str = "golden_data_set_experiment_1.csv"):
+def save_results(results: pd.DataFrame, output_file: str = "golden_data_set_experiment_2.csv"):
     """Save evaluation results to CSV."""
     results.to_csv(output_file, index=False)
     print(f"Results saved to {output_file}")

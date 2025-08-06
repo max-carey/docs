@@ -1,0 +1,10 @@
+Running in TEST MODE - only processing first 5 rows
+
+Mean Scores:
+===========
+context_recall: 0.400
+faithfulness: 0.385
+factual_correctness: 0.058
+answer_relevancy: 0.594
+context_entity_recall: 0.000
+noise_sensitivity_relevant: 0.000
