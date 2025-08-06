@@ -1,5 +1,15 @@
 # ELA Journal Vector Search and RAG Evaluation Framework
 
+## 📝 Deliverables for Grader
+
+### [🎥 Watch the Project Demo Video](https://www.loom.com/share/e59a360d01f740a18fc7ecdda81f1c6f)
+A 5-minute walkthrough of the system in action, demonstrating the RAG pipeline and evaluation framework.
+
+### [📚 Read the Homework Questions & Answers](homework_questions.md)
+Comprehensive documentation of the project's goals, implementation, and results.
+
+---
+
 This project creates a searchable vector database from ELA (Estudios de Lingüística Aplicada) journal PDFs using Qdrant and LangChain. It includes a comprehensive RAG (Retrieval-Augmented Generation) evaluation framework that uses RAGAS to assess the quality of the system's responses.
 
 ## Project Overview
