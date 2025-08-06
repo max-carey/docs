@@ -97,6 +97,65 @@ Advanced retrieval methods showed mixed results:
 | Entity Recall | 0.006 | 0.011 | -45% |
 | Noise Sensitivity | 0.052 | 0.012 | +333% |
 
+
+Finally, you can see that I ran a further test, having integrated the tavily web search tool. Faithfullness improved slightly, and this by far had the best results
+
+Mean Scores:
+===========
+context_recall: 0.713
+faithfulness: 0.392
+factual_correctness: 0.247
+answer_relevancy: 0.853
+context_entity_recall: 0.016
+noise_sensitivity_relevant: 0.172
+
+Comparative Analysis Across All Iterations:
+=====================================
+
+1. Context Recall
+   - Current:  0.713 (Best)
+   - Advanced: 0.646
+   - Baseline: 0.534
+   Shows consistent improvement across iterations, with current results showing the best performance yet.
+
+2. Faithfulness
+   - Current:  0.392 (Best)
+   - Advanced: 0.288
+   - Baseline: 0.337
+   Current iteration shows significant improvement, recovering from the dip in the advanced version.
+
+3. Factual Correctness
+   - Current:  0.247
+   - Advanced: 0.278 (Best)
+   - Baseline: 0.207
+   Slight regression from advanced version but still better than baseline.
+
+4. Answer Relevancy
+   - Current:  0.853 (Best)
+   - Advanced: 0.633
+   - Baseline: 0.597
+   Dramatic improvement in the current iteration, showing the best performance by far.
+
+5. Context Entity Recall
+   - Current:  0.016
+   - Advanced: 0.006
+   - Baseline: 0.011
+   Slight improvement from advanced version but still a critical area needing attention.
+
+6. Noise Sensitivity
+   - Current:  0.172 (Best)
+   - Advanced: 0.052
+   - Baseline: 0.012
+   Continues the trend of improvement, showing the best performance in handling noise.
+
+Summary:
+-------
+- The current iteration shows the best performance in 4 out of 6 metrics
+- Most notable improvements in Answer Relevancy (+0.22 from advanced) and Context Recall
+- Entity Recall remains a critical challenge despite minor improvement
+- Factual Correctness slightly decreased from advanced version but maintains improvement over baseline
+- Overall trajectory shows positive progress with most metrics improving
+
 ### Future Improvements (5 points)
 Planned improvements for the second half of the course:
 1. Implement specialized entity recognition for linguistics terminology
